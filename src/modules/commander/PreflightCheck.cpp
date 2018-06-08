@@ -494,7 +494,7 @@ static bool powerCheck(orb_advert_t *mavlink_log_pub, bool report_fail, bool pre
 
 				// avionics rail
 				// Check avionics rail voltages
-				if (avionics_power_rail_voltage < 4.5f) {
+				if (avionics_power_rail_voltage < 4.2f) {
 					success = false;
 
 					if (report_fail) {
