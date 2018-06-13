@@ -150,11 +150,12 @@ pipeline {
 
           steps {
             dir('catkin_ws') {
-              sh '''
-                    source /opt/ros/kinetic/setup.bash
-                    catkin init
-                    source devel/setup.bash
-                    catkin build
+              sh '''#!/bin/bash -l
+                    echo $0;
+                    source /opt/ros/kinetic/setup.bash;
+                    catkin init;
+                    source devel/setup.bash;
+                    catkin build;
               '''
             }
           }
