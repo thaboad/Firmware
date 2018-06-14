@@ -1,15 +1,20 @@
 #ifdef __PX4_NUTTX
 
 #include "gpio.h"
+#include <cstring>
 
 constexpr uint32_t CameraInterfaceGPIO::_gpios[6];
 
 CameraInterfaceGPIO::CameraInterfaceGPIO():
 	CameraInterface(),
-	_polarity(0)
+	_trigger_invert(false)
 {
 	_p_polarity = param_find("TRIG_POLARITY");
-	param_get(_p_polarity, &_polarity);
+
+	// polarity of the trigger (0 = active low, 1 = active high )
+	int polarity;
+	param_get(_p_polarity, &polarity);
+	_trigger_invert = (polarity == 0);
 
 	get_pins();
 	setup();
@@ -21,32 +26,27 @@ CameraInterfaceGPIO::~CameraInterfaceGPIO()
 
 void CameraInterfaceGPIO::setup()
 {
+	memset(_triggers, 0, sizeof(_triggers));
+
 	for (unsigned i = 0; i < arraySize(_pins); i++) {
-		// Pin range is from 0 to 5
+		// Pin range is from 1 to 6, indexes are 0 to 5
 		if (_pins[i] >= 0 && _pins[i] < (int)arraySize(_gpios)) {
-			px4_arch_configgpio(_gpios[_pins[i]]);
-			px4_arch_gpiowrite(_gpios[_pins[i]], !_polarity);
+			_triggers[i] = _gpios[_pins[i]];
+			px4_arch_configgpio(_triggers[i]);
+			px4_arch_gpiowrite(_triggers[i], false ^ _trigger_invert);
 		}
 	}
 }
 
-void CameraInterfaceGPIO::trigger(bool enable)
+void CameraInterfaceGPIO::trigger(bool trigger_on_true)
 {
-	if (enable) {
-		for (unsigned i = 0; i < arraySize(_pins); i++) {
-			if (_pins[i] >= 0 && _pins[i] < (int)arraySize(_gpios)) {
-				// ACTIVE_LOW == 1
-				px4_arch_gpiowrite(_gpios[_pins[i]], _polarity);
-			}
-		}
+	bool trigger_state = trigger_on_true ^ _trigger_invert;
 
-	} else {
-		for (unsigned i = 0; i < arraySize(_pins); i++) {
-			if (_pins[i] >= 0 && _pins[i] < (int)arraySize(_gpios)) {
-				// ACTIVE_LOW == 1
-				px4_arch_gpiowrite(_gpios[_pins[i]], !_polarity);
-			}
-		}
+	for (unsigned i = 0; i < arraySize(_triggers); i++) {
+
+		if (_triggers[i] == 0) { break; }
+
+		px4_arch_gpiowrite(_triggers[i], trigger_state);
 	}
 }
 
@@ -54,7 +54,7 @@ void CameraInterfaceGPIO::info()
 {
 	PX4_INFO("GPIO trigger mode, pins enabled : [%d][%d][%d][%d][%d][%d], polarity : %s",
 		 _pins[5], _pins[4], _pins[3], _pins[2], _pins[1], _pins[0],
-		 _polarity ? "ACTIVE_HIGH" : "ACTIVE_LOW");
+		 _trigger_invert ? "ACTIVE_LOW" : "ACTIVE_HIGH");
 }
 
 #endif /* ifdef __PX4_NUTTX */
